@@ -20,7 +20,14 @@ class Turret():
             pg.draw.circle(screen, (255,255,255), self.rect.center, self.range, 1)
     
     def save(self):
-        return {"position": self.pos.serialize(), "damage": self.damage, "range": self.range, "attackspeed": self.attackspeed, "cost": self.cost, "cooldown": self.cooldown}
+        return {
+            "position": self.pos.serialize(),
+            "damage": self.damage,
+            "range": self.range,
+            "attackspeed": self.attackspeed,
+            "cost": self.cost,
+            "cooldown": self.cooldown
+        }
     
     def attack(self, target):
         target.health -= self.damage
