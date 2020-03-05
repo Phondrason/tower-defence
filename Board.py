@@ -1,9 +1,11 @@
 import pygame as pg
 from Turret import Turret
+from Enemy import Enemy
 from Vector import Vector
 
 class Board():
     def __init__(self):
+        self.font = pg.font.SysFont("Calibri", 50)
         self.image = pg.Surface((800, 600))
         self.image.fill((70,155,30))
         self.rect = self.image.get_rect()
@@ -12,7 +14,24 @@ class Board():
         for x, y in self.waypoints: 
             self.matrix[y][x] = "path"
             pg.draw.rect(self.image, (214,148,27), (x*40, y*40, 40, 40))
+        self.enemies = self.spawnWave()
+        self.spawnTimer = 1800
         self.turrets = []
+
+    def spawnWave(self):
+        return [Enemy(Vector(40, -40*i), self.waypoints[:], health=100, totalhealth=100, speed=2) for i in range(1, 11)]
+
+    def load(self, dict):
+        self.matrix = dict["matrix"]
+        self.turrets = [Turret(Vector(turret["position"]), turret["damage"], turret["range"], turret["attackspeed"], turret["cost"], turret["cooldown"]) for turret in dict["turrets"]]
+        self.enemies = [Enemy(Vector(enemy["position"]), enemy["waypoints"], Vector(enemy["next"]), enemy["health"], enemy["totalhealth"], enemy["speed"]) for enemy in dict["enemies"]]
+    
+    def save(self):
+        return {
+            "matrix": self.matrix,
+            "turrets": [turret.save() for turret in self.turrets],
+            "enemies": [enemy.save() for enemy in self.enemies]
+        }
 
     def click(self, pos):
         x, y = pos // 40
@@ -22,5 +41,26 @@ class Board():
 
     def draw(self, screen):
         screen.blit(self.image, self.rect)
+        for enemy in self.enemies:
+            enemy.draw(screen)
         for turret in self.turrets:
             turret.draw(screen)
+        rendered = self.font.render(str(round(self.spawnTimer / 60, 1)), True, (255,255,255))
+        screen.blit(rendered, (20, 20))
+    
+    def update(self):
+        self.spawnTimer -= 1
+        for enemy in self.enemies:
+            if enemy.move():
+                print("rip")
+        for turret in self.turrets:
+            turret.cooldown -= 1
+            if turret.cooldown <= 0:
+                eligible = [enemy for enemy in self.enemies if (Vector(enemy.rect.center) - Vector(turret.rect.center)).norm() <= turret.range]
+                if len(eligible) > 0:
+                    target = min(eligible, key=lambda enemy: len(enemy.waypoints))
+                    if turret.attack(target) < 0:
+                        self.enemies.remove(target)
+        if len(self.enemies) == 0 or self.spawnTimer == 0:
+            self.enemies.extend(self.spawnWave())
+            self.spawnTimer = 1800

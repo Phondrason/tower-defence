@@ -1,9 +1,7 @@
 import pygame as pg
 from States import States
 from Board import Board
-from Enemy import Enemy
 from Vector import Vector
-from Turret import Turret
 import json, os
 
 class Game(States):
@@ -19,26 +17,19 @@ class Game(States):
         self.saveGame()
 
     def saveGame(self):
-        saveDict = {
-            "boardMatrix": self.board.matrix,
-            "turrets": [turret.save() for turret in self.board.turrets],
-            "enemies": [enemy.save() for enemy in self.enemies]
-        }
+        saveDict = self.board.save()
         with open(os.path.dirname(os.path.abspath(__file__)) + "\\saves\\savefile.json","w") as f:
             json.dump(saveDict, f)
 
     def newGame(self):
         self.board = Board()
-        self.enemies = [Enemy(Vector(40, 40*i), self.board.waypoints[:]) for i in range(-1, -11, -1)]
 
     def loadGame(self):
         try:
             with open(os.path.dirname(os.path.abspath(__file__)) + "\\saves\\savefile.json","r") as f:
                 saveDict = json.load(f)
                 self.board = Board()
-                self.board.matrix = saveDict["boardMatrix"]
-                self.board.turrets = [Turret(Vector(turret["position"]), turret["damage"], turret["range"], turret["attackspeed"], turret["cost"]) for turret in saveDict["turrets"]]
-                self.enemies = [Enemy(Vector(enemy["position"]), enemy["waypoints"], Vector(enemy["next"]), enemy["health"], enemy["speed"]) for enemy in saveDict["enemies"]]
+                self.board.load(saveDict)
         except:
             self.newGame()
 
@@ -58,14 +49,10 @@ class Game(States):
                 self.board.click(Vector(event.pos) - Vector(self.boardRect.topleft))
 
     def update(self, screen):
-        for enemy in self.enemies:
-            if enemy.move():
-                self.done = True
+        self.board.update()
         self.draw(screen)
 
     def draw(self, screen):
         screen.fill((20,20,20))
         self.board.draw(self.boardSurface)
-        for enemy in self.enemies:
-            enemy.draw(self.boardSurface)
         screen.blit(self.boardSurface, self.boardRect)
