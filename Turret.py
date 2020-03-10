@@ -1,12 +1,13 @@
 import pygame as pg
+from Vector import Vector
 
 class Turret():
-    def __init__(self, pos, damage=20, range=200, attackspeed=2.0, cost=100, cooldown=0):
+    def __init__(self, matrixpos, damage=20, range=200, attackspeed=2.0, cost=100, cooldown=0):
         self.image = pg.Surface((40, 40), pg.SRCALPHA)
         self.rect = self.image.get_rect()
-        self.rect.topleft = pos * 40
+        self.rect.topleft = matrixpos * 40
         pg.draw.circle(self.image, (200,200,0), [20, 20], 15)
-        self.pos = pos
+        self.pos = Vector(matrixpos)
         self.damage = damage
         self.range = range
         self.attackspeed = attackspeed
@@ -18,7 +19,10 @@ class Turret():
         screen.blit(self.image, self.rect)
         if self.selected:
             pg.draw.circle(screen, (255,255,255), self.rect.center, self.range, 1)
-    
+            
+    def getStats(self):
+        return ["Damage: {}".format(self.damage), "Range: {}".format(self.range), "Attackpeed: {}".format(self.attackspeed), "Cost: {}".format(self.cost)]
+        
     def save(self):
         return {
             "position": self.pos.serialize(),

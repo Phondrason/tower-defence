@@ -3,6 +3,7 @@ from States import States
 from Vector import Vector
 from Turret import Turret
 from Enemy import Enemy
+from Projectile import Projectile
 import json, os
 
 class Game(States):
@@ -12,9 +13,21 @@ class Game(States):
         self.boardSurface = pg.Surface((800, 600), pg.SRCALPHA)
         self.boardRect = self.boardSurface.get_rect()
         self.boardRect.bottomleft = [50, screensize[1]-50]
-        self.font = pg.font.SysFont("Calibri", 50)
+        self.projectiles = []
+        self.loadMedia()
         self.newGame()
-
+    
+    def loadMedia(self):
+        self.fonts = {
+            "50": pg.font.SysFont("Calibri", 50),
+            "20": pg.font.SysFont("Calibri", 20)
+        }
+        self.images = {
+            "coin": pg.transform.scale(pg.image.load(os.path.dirname(os.path.abspath(__file__)) + "\\images\\coin.png").convert_alpha(), (44, 44)),
+            "heart": pg.transform.scale(pg.image.load(os.path.dirname(os.path.abspath(__file__)) + "\\images\\heart.png").convert_alpha(), (45, 39)),
+            "hourglass": pg.transform.scale(pg.image.load(os.path.dirname(os.path.abspath(__file__)) + "\\images\\hourglass.png").convert_alpha(), (22, 40))
+        }
+    
     def cleanup(self):
         self.saveGame()
 
@@ -29,7 +42,7 @@ class Game(States):
     def getEvent(self, event):
         if event.type == pg.KEYDOWN and event.key == pg.K_ESCAPE:
             self.done = True
-        elif event.type == pg.MOUSEBUTTONDOWN and event.button == 1:
+        elif event.type == pg.MOUSEBUTTONUP and event.button == 1:
             if self.boardRect.collidepoint(event.pos):
                 self.click(Vector(event.pos) - Vector(self.boardRect.topleft))
                 
@@ -37,8 +50,13 @@ class Game(States):
         self.spawnTimer -= 1
         for enemy in self.enemies:
             if enemy.move():
-                print("rip")
+                self.health -= 10
+                self.enemies.remove(enemy)
+                enemy.selected = False
         self.attack()
+        for projectile in self.projectiles:
+            if projectile.update():
+                self.projectiles.remove(projectile)
         if len(self.enemies) == 0 or self.spawnTimer == 0:
             self.enemies.extend(self.spawnWave())
             self.spawnTimer = 1800
@@ -51,12 +69,29 @@ class Game(States):
                 eligible = [enemy for enemy in self.enemies if (Vector(enemy.rect.center) - Vector(turret.rect.center)).norm() <= turret.range]
                 if len(eligible) > 0:
                     target = min(eligible, key=lambda enemy: len(enemy.waypoints))
-                    if turret.attack(target) < 0:
+                    self.projectiles.append(Projectile(turret, target))
+                    if turret.attack(target) <= 0:
                         self.money += target.value
                         self.enemies.remove(target)
+                        if target.selected:
+                            self.selected = None
     
     def draw(self, screen):
         screen.fill((20,20,20))
+        self.drawBoard(screen)
+        self.renderText(screen, round(self.spawnTimer / 60, 1), "50", (60, 750))
+        self.renderText(screen, self.money, "50", (60, 20))
+        self.renderText(screen, self.health, "50", (800, 750))
+        screen.blit(self.images["coin"], (10, 20))
+        screen.blit(self.images["heart"], (750, 755))
+        screen.blit(self.images["hourglass"], (10, 755))
+        if self.selected is not None:
+            i = 0
+            for row in self.selected.getStats():
+                self.renderText(screen, row, "20", (600, 20+i*20))
+                i += 1
+    
+    def drawBoard(self, screen):
         self.boardSurface.fill((70,155,30))
         for y, row in enumerate(self.matrix):
             for x, cell in enumerate(row):
@@ -65,12 +100,14 @@ class Game(States):
             enemy.draw(self.boardSurface)
         for turret in self.turrets:
             turret.draw(self.boardSurface)
-        timer = self.font.render(str(round(self.spawnTimer / 60, 1)), True, (255,255,255))
-        money = self.font.render(str(self.money), True, (255,255,255))
-        self.screen.blit(timer, (50, 100))
-        self.screen.blit(money, (200,100))
+        for projectile in self.projectiles:
+            projectile.draw(self.boardSurface)
         screen.blit(self.boardSurface, self.boardRect)
-        
+    
+    def renderText(self, screen, text, size, pos, color=(255,255,255)):
+        render = self.fonts[size].render(str(text), True, color)
+        screen.blit(render, pos)
+    
     def newGame(self):
         self.matrix = [["empty" for x in range(20)] for y in range(15)]
         self.waypoints = [[1,0],[1,1],[2,1],[3,1],[4,1],[5,1],[6,1],[7,1],[8,1],[9,1],[10,1],[11,1],[12,1],[13,1],[14,1],[15,1],[16,1],[17,1],[18,1],[18,2],[18,3],[17,3],[16,3],[15,3],[14,3],[13,3],[12,3],[11,3],[10,3],[9,3],[8,3],[7,3],[6,3],[5,3],[4,3],[3,3],[2,3],[1,3],[1,4],[1,5],[2,5],[3,5],[4,5],[5,5],[6,5],[7,5],[8,5],[9,5],[10,5],[11,5],[12,5],[13,5],[14,5],[15,5],[16,5],[17,5],[18,5],[18,6],[18,7],[17,7],[16,7],[15,7],[14,7],[13,7],[12,7],[11,7],[10,7],[9,7],[8,7],[7,7],[6,7],[5,7],[4,7],[3,7],[2,7],[1,7],[1,8],[1,9],[2,9],[3,9],[4,9],[5,9],[6,9],[7,9],[8,9],[9,9],[10,9],[11,9],[12,9],[13,9],[14,9],[15,9],[16,9],[17,9],[18,9],[18,10],[18,11],[17,11],[16,11],[15,11],[14,11],[13,11],[12,11],[11,11],[10,11],[9,11],[8,11],[7,11],[6,11],[5,11],[4,11],[3,11],[2,11],[1,11],[1,12],[1,13],[2,13],[3,13],[4,13],[5,13],[6,13],[7,13],[8,13],[9,13],[10,13],[11,13],[12,13],[13,13],[14,13],[15,13],[16,13],[17,13],[18,13],[18,14]]
@@ -80,6 +117,7 @@ class Game(States):
         self.enemies = self.spawnWave()
         self.spawnTimer = 1800
         self.money = 200
+        self.health = 100
         self.turrets = []
         self.selected = None
 
@@ -89,7 +127,8 @@ class Game(States):
             "turrets": [turret.save() for turret in self.turrets],
             "enemies": [enemy.save() for enemy in self.enemies],
             "spawnTimer": self.spawnTimer,
-            "money": self.money
+            "money": self.money,
+            "health": self.health
         }
         with open(os.path.dirname(os.path.abspath(__file__)) + "\\saves\\savefile.json","w") as f:
             json.dump(dict, f)
@@ -103,6 +142,7 @@ class Game(States):
                 self.enemies = [Enemy(Vector(enemy["position"]), enemy["waypoints"], Vector(enemy["next"]), enemy["health"], enemy["totalhealth"], enemy["speed"], enemy["value"]) for enemy in dict["enemies"]]
                 self.spawnTimer = dict["spawnTimer"]
                 self.money = dict["money"]
+                self.health = dict["health"]
         except:
             self.newGame()
             
@@ -120,8 +160,17 @@ class Game(States):
             new.selected = True
             self.selected = new
             self.turrets.append(new)
+            return
         elif self.matrix[y][x] == "turret":
             for turret in self.turrets:
                 if turret.rect.collidepoint(pos):
                     turret.selected = True
                     self.selected = turret
+                    return
+        else:
+            for enemy in self.enemies:
+                if enemy.rect.collidepoint(pos):
+                    enemy.selected = True
+                    self.selected = enemy
+                    return
+        self.selected = None
