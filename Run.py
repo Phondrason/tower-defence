@@ -5,13 +5,12 @@ from Control import Control
 import pygame as pg
 
 if __name__ == "__main__":
-    SCREENSIZE = [900, 800]
     pg.init()
-    app = Control(SCREENSIZE)
+    app = Control()
     stateDict =  {
-        "menu": MainMenu(SCREENSIZE),
-        "game": Game(SCREENSIZE),
-        "newmenu": NewMenu(SCREENSIZE)
+        "menu": MainMenu(),
+        "game": Game(),
+        "newmenu": NewMenu()
     }
     app.setupStates(stateDict, "menu")
     app.mainLoop()

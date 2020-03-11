@@ -3,8 +3,8 @@ import pygame as pg
 
 class Projectile():
     def __init__(self, origin, target):
-        self.image = pg.Surface((5,5))
-        self.image.fill((0,0,0))
+        self.image = pg.Surface((7,7), pg.SRCALPHA)
+        pg.draw.circle(self.image, (255,255,255), (3,3), 3)
         self.rect = self.image.get_rect()
         self.pos = Vector(origin.rect.center)
         self.rect.center = self.pos

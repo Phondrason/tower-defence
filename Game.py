@@ -4,15 +4,20 @@ from Vector import Vector
 from Turret import Turret
 from Enemy import Enemy
 from Projectile import Projectile
+from Button import Button
 import json, os
 
 class Game(States):
-    def __init__(self, screensize=[900,800]):
+    def __init__(self):
         States.__init__(self)
         self.next = ["menu", "none"]
         self.boardSurface = pg.Surface((800, 600), pg.SRCALPHA)
         self.boardRect = self.boardSurface.get_rect()
-        self.boardRect.bottomleft = [50, screensize[1]-50]
+        self.boardRect.topleft = [50, 150]
+        self.sellButton = Button((600, 60), (90, 30), "Sell", centery=True)
+        self.upgradeButton = Button((600, 110), (90, 30), "Upgrade", centery=True)
+        self.skipButton = Button((175, 775), (80, 30), "Skip", centery=True)
+        self.skipButton.visible = True
         self.projectiles = []
         self.loadMedia()
         self.newGame()
@@ -45,7 +50,26 @@ class Game(States):
         elif event.type == pg.MOUSEBUTTONUP and event.button == 1:
             if self.boardRect.collidepoint(event.pos):
                 self.click(Vector(event.pos) - Vector(self.boardRect.topleft))
+            elif self.sellButton.rect.collidepoint(event.pos) and self.sellButton.enabled:
+                self.money += self.selected.cost // 0.6
+                self.selected.selected = False
+                self.turrets.remove(self.selected)
+                x, y = self.selected.pos
+                self.matrix[y][x] = "empty"
+                self.selected = None
+                self.sellButton.enabled = False
+                self.sellButton.visible = False
+                self.upgradeButton.visible = False
+                self.upgradeButton.enabled = False
+            elif self.upgradeButton.rect.collidepoint(event.pos) and self.upgradeButton.enabled:
+                if self.money >= self.selected.upgradeCost:
+                    self.money -= self.selected.upgradeCost
+                    self.selected.upgrade()
+            elif self.skipButton.rect.collidepoint(event.pos) and self.skipButton.enabled:
+                self.spawnWave()
+                self.skipButton.enabled = False
                 
+
     def update(self, screen):
         self.spawnTimer -= 1
         for enemy in self.enemies:
@@ -57,9 +81,14 @@ class Game(States):
         for projectile in self.projectiles:
             if projectile.update():
                 self.projectiles.remove(projectile)
-        if len(self.enemies) == 0 or self.spawnTimer == 0:
-            self.enemies.extend(self.spawnWave())
-            self.spawnTimer = 1800
+        if self.selected is not None and type(self.selected).__name__ == "Turret":
+            self.upgradeButton.enabled = self.money >= self.selected.upgradeCost
+        else:
+            self.upgradeButton.enabled = False
+        if len(self.enemies) == 0:
+            self.skipButton.enabled = True
+        if self.spawnTimer == 0:
+            self.spawnWave()
         self.draw(screen)
     
     def attack(self):
@@ -79,16 +108,21 @@ class Game(States):
     def draw(self, screen):
         screen.fill((20,20,20))
         self.drawBoard(screen)
-        self.renderText(screen, round(self.spawnTimer / 60, 1), "50", (60, 750))
-        self.renderText(screen, self.money, "50", (60, 20))
-        self.renderText(screen, self.health, "50", (800, 750))
-        screen.blit(self.images["coin"], (10, 20))
-        screen.blit(self.images["heart"], (750, 755))
-        screen.blit(self.images["hourglass"], (10, 755))
+        self.renderImage(screen, self.images["hourglass"], (50, 775), False, True)
+        self.renderText(screen, round(self.spawnTimer / 60, 1), 50, (75, 775), False, True)
+        self.renderImage(screen, self.images["coin"], (50, 125), False, True)
+        self.renderText(screen, self.money, 50, (100, 125), False, True)
+        self.renderImage(screen, self.images["heart"], (750, 775), False, True)
+        self.renderText(screen, self.health, 50, (800, 775), False, True)
+        if self.sellButton.visible: self.sellButton.draw(screen)
+        if self.upgradeButton.visible: self.upgradeButton.draw(screen)
+        self.skipButton.draw(screen)
         if self.selected is not None:
-            i = 0
+            i = 1
+            self.renderText(screen, type(self.selected).__name__, 20, (700, 30), centery=True)
+            pg.draw.line(screen, (255,255,255), (700, 40), (800, 40))
             for row in self.selected.getStats():
-                self.renderText(screen, row, "20", (600, 20+i*20))
+                self.renderText(screen, row, 20, (700, 35+i*20), centery=True)
                 i += 1
     
     def drawBoard(self, screen):
@@ -103,10 +137,20 @@ class Game(States):
         for projectile in self.projectiles:
             projectile.draw(self.boardSurface)
         screen.blit(self.boardSurface, self.boardRect)
-    
-    def renderText(self, screen, text, size, pos, color=(255,255,255)):
-        render = self.fonts[size].render(str(text), True, color)
-        screen.blit(render, pos)
+        
+    def renderImage(self, screen, image, pos, centerx=False, centery=False):
+        width, height = image.get_size()
+        posx, posy = pos
+        if centerx:
+            posx = pos[0] - width // 2
+        if centery:
+            posy = pos[1] - height // 2
+        screen.blit(image, (posx, posy))
+        
+    def renderText(self, screen, text, size, pos, centerx=False, centery=False):
+        #centerx & centery = centers text on given position
+        render = self.fonts[str(size)].render(str(text), True, (255,255,255))
+        self.renderImage(screen, render, pos, centerx, centery)
     
     def newGame(self):
         self.matrix = [["empty" for x in range(20)] for y in range(15)]
@@ -114,8 +158,8 @@ class Game(States):
         for x, y in self.waypoints: 
             self.matrix[y][x] = "path"
             pg.draw.rect(self.boardSurface, (214,148,27), (x*40, y*40, 40, 40))
-        self.enemies = self.spawnWave()
-        self.spawnTimer = 1800
+        self.enemies = []
+        self.spawnWave()
         self.money = 200
         self.health = 100
         self.turrets = []
@@ -147,7 +191,9 @@ class Game(States):
             self.newGame()
             
     def spawnWave(self):
-        return [Enemy(Vector(40, -40*i), self.waypoints[:], health=100, totalhealth=100, speed=2) for i in range(1, 11)]
+        self.enemies.extend([Enemy(Vector(40, -40*i), self.waypoints[:], health=100, totalhealth=100, speed=2) for i in range(1, 11)])
+        self.spawnTimer = 1800
+        self.skipButton.enabled = False
 
     def click(self, pos):
         x, y = pos // 40
@@ -157,20 +203,29 @@ class Game(States):
             self.money -= 100
             self.matrix[y][x] = "turret"
             new = Turret(pos // 40)
-            new.selected = True
-            self.selected = new
             self.turrets.append(new)
-            return
-        elif self.matrix[y][x] == "turret":
-            for turret in self.turrets:
-                if turret.rect.collidepoint(pos):
-                    turret.selected = True
-                    self.selected = turret
-                    return
-        else:
-            for enemy in self.enemies:
-                if enemy.rect.collidepoint(pos):
-                    enemy.selected = True
-                    self.selected = enemy
-                    return
+            
+        for turret in self.turrets:
+            if turret.rect.collidepoint(pos):
+                turret.selected = True
+                self.selected = turret
+                self.sellButton.enabled = True
+                self.upgradeButton.enabled = False
+                self.sellButton.visible = True
+                self.upgradeButton.visible = True
+                return
+                
+        for enemy in self.enemies:
+            if enemy.rect.collidepoint(pos):
+                enemy.selected = True
+                self.selected = enemy
+                self.sellButton.enabled = False
+                self.upgradeButton.enabled = False
+                self.sellButton.visible = False
+                self.upgradeButton.visible = False
+                return
         self.selected = None
+        self.sellButton.enabled = False
+        self.upgradeButton.enabled = False
+        self.sellButton.visible = False
+        self.upgradeButton.visible = False

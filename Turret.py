@@ -12,17 +12,25 @@ class Turret():
         self.range = range
         self.attackspeed = attackspeed
         self.cost = cost
+        self.upgradeCost = cost // 2
         self.cooldown = cooldown
         self.selected = False
     
     def draw(self, screen):
         screen.blit(self.image, self.rect)
         if self.selected:
-            pg.draw.circle(screen, (255,255,255), self.rect.center, self.range, 1)
+            pg.draw.circle(screen, (255,255,255), self.rect.center, self.range, 2)
             
     def getStats(self):
-        return ["Damage: {}".format(self.damage), "Range: {}".format(self.range), "Attackpeed: {}".format(self.attackspeed), "Cost: {}".format(self.cost)]
-        
+        return ["Damage: {}".format(self.damage), "Range: {}".format(self.range), "Attackpeed: {}".format(self.attackspeed), "Value: {}".format(self.cost), "Upgradecost: {}".format(self.upgradeCost)]
+    
+    def upgrade(self):
+        self.cost += self.upgradeCost
+        self.upgradeCost = self.cost // 2
+        self.damage += self.damage // 5
+        self.range += self.range // 5
+        self.attackspeed += round(self.attackspeed / 5, 1)
+    
     def save(self):
         return {
             "position": self.pos.serialize(),

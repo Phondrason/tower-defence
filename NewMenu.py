@@ -3,7 +3,7 @@ from States import States
 from MenuManager import MenuManager
 
 class NewMenu(States, MenuManager):
-    def __init__(self, screensize=[900,800]):
+    def __init__(self):
         States.__init__(self)
         MenuManager.__init__(self)
         self.next = ["menu","none"]
@@ -11,7 +11,7 @@ class NewMenu(States, MenuManager):
         self.nextList = [["game","new"], ["menu","none"]]
         self.preRenderOptions()
         self.spacer = 100
-        self.fromBottom = screensize[1] / 2 - (len(self.options) * self.spacer) / 2
+        self.fromBottom = 400 - (len(self.options) * self.spacer) / 2
         
     def cleanup(self):
         pass
